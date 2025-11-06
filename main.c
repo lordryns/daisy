@@ -43,8 +43,8 @@ bool close_window_dialog(bool *draw);
 void info_dialog(bool *draw);
 void error_dialog(bool *draw,
                   char *message); // issue with error dialog. TODO: fix later
-void load_new_image(ImageObject *image, char *filename, bool *show_error_popup,
-                    char *error_message);
+void load_new_image(ImageObject *image, char *filename);
+
 void load_texture(ImageObject *image);
 void handle_dynamic_canvas_resizing(ImageObject *image);
 void handle_crop_event(ImageObject *image);
@@ -63,6 +63,7 @@ int main() {
   bool draw_error_dialog = false;
   char error_message[1024] = {0};
   float last_blur_change = 0.f;
+  bool last_pixel_snap_change = false;
 
   InitWindow(700, 500, "Image Editor");
   SetTargetFPS(60);
@@ -91,10 +92,15 @@ int main() {
 
       static float blur_timer = 0.f;
       blur_timer += GetFrameTime();
-      if (image.blur_intensity != last_blur_change && blur_timer > 0.2f) {
+      if (image.blur_intensity != last_blur_change && blur_timer > 1.f) {
         handle_dynamic_canvas_resizing(&image);
         last_blur_change = image.blur_intensity;
         blur_timer = 0.f;
+      }
+
+      if (image.snap_pixels != last_pixel_snap_change) {
+        handle_dynamic_canvas_resizing(&image);
+        last_pixel_snap_change = image.snap_pixels;
       }
     } else {
       GuiGrid((Rectangle){canvas.position.x, canvas.position.y, canvas.size.x,
@@ -129,9 +135,7 @@ int main() {
       const char *filename =
           TextFormat("%s" PATH_SEPERATOR "%s", file_dialog_state.dirPathText,
                      file_dialog_state.fileNameText);
-      load_new_image(&image, (char *)filename, &draw_error_dialog,
-                     error_message);
-      handle_dynamic_canvas_resizing(&image);
+      load_new_image(&image, (char *)filename);
     }
 
     // blur slider
@@ -179,12 +183,10 @@ void handle_dynamic_canvas_resizing(ImageObject *image) {
     ImageResize(&(image->img_copy), canvas.size.x, canvas.size.y);
   }
 
-  UnloadTexture(canvas.texture);
-  canvas.texture = LoadTextureFromImage(image->img_copy);
+  load_texture(image);
 }
 
-void load_new_image(ImageObject *image, char *filename, bool *show_error_popup,
-                    char *error_message) {
+void load_new_image(ImageObject *image, char *filename) {
   if (IsFileExtension(filename, ".png") || IsFileExtension(filename, ".jpeg") ||
       IsFileExtension(filename, ".jpg")) {
 
@@ -197,9 +199,9 @@ void load_new_image(ImageObject *image, char *filename, bool *show_error_popup,
     image->path = filename;
     image->isLoaded = true;
     image->initial_size = (Vector2){image->image.width, image->image.height};
+    handle_dynamic_canvas_resizing(image);
   } else {
-    *show_error_popup = true;
-    error_message = "Unsupported filetype!";
+    // error message was causing segmentation fault so i removed it for now
   }
 }
 
