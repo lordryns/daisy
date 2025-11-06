@@ -1,4 +1,3 @@
-#include "file_handler.h"
 #include <raylib.h>
 #include <stdbool.h>
 #include <stdio.h>
