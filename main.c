@@ -62,6 +62,7 @@ int main() {
   bool draw_info_dialog = false;
   bool draw_error_dialog = false;
   char error_message[1024] = {0};
+  float last_blur_change = 0.f;
 
   InitWindow(700, 500, "Image Editor");
   SetTargetFPS(60);
@@ -86,6 +87,14 @@ int main() {
       DrawTexture(canvas.texture, canvas.position.x, canvas.position.y, WHITE);
       if (IsWindowResized()) {
         handle_dynamic_canvas_resizing(&image);
+      }
+
+      static float blur_timer = 0.f;
+      blur_timer += GetFrameTime();
+      if (image.blur_intensity != last_blur_change && blur_timer > 0.2f) {
+        handle_dynamic_canvas_resizing(&image);
+        last_blur_change = image.blur_intensity;
+        blur_timer = 0.f;
       }
     } else {
       GuiGrid((Rectangle){canvas.position.x, canvas.position.y, canvas.size.x,
