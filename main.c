@@ -1,6 +1,5 @@
 #include <raylib.h>
 #include <stdbool.h>
-#include <stdio.h>
 
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
@@ -51,6 +50,7 @@ void handle_dynamic_canvas_resizing(ImageObject *image);
 void handle_crop_event(ImageObject *image);
 PosSize set_dynamic_position(int x, int y, int width, int height);
 Rectangle set_dynamic_position_rect(int x, int y, int width, int height);
+void update_and_reflect_image_changes(ImageObject *image);
 // global variables (used globally)
 
 CustomCanvas canvas = {{0}};
@@ -141,6 +141,7 @@ int main() {
 
   if (image.isLoaded) {
     UnloadImage(image.image);
+    UnloadImage(image.img_copy);
   }
   UnloadTexture(canvas.texture);
   CloseWindow();
@@ -158,22 +159,19 @@ void handle_crop_event(ImageObject *image) {
 
 void load_texture(ImageObject *image) {
   UnloadTexture(canvas.texture);
-  canvas.texture = LoadTextureFromImage(image->image);
+  canvas.texture = LoadTextureFromImage(image->img_copy);
 }
 
 void handle_dynamic_canvas_resizing(ImageObject *image) {
+  update_and_reflect_image_changes(image);
   if (image->snap_pixels) {
-    ImageResizeNN(&(image->image), canvas.size.x, canvas.size.y);
+    ImageResizeNN(&(image->img_copy), canvas.size.x, canvas.size.y);
   } else {
-    ImageResize(&(image->image), canvas.size.x, canvas.size.y);
+    ImageResize(&(image->img_copy), canvas.size.x, canvas.size.y);
   }
 
-  ImageBlurGaussian(&image->image, image->blur_intensity);
-
-  printf("%d\n", image->snap_pixels);
-
   UnloadTexture(canvas.texture);
-  canvas.texture = LoadTextureFromImage(image->image);
+  canvas.texture = LoadTextureFromImage(image->img_copy);
 }
 
 void load_new_image(ImageObject *image, char *filename, bool *show_error_popup,
@@ -183,9 +181,10 @@ void load_new_image(ImageObject *image, char *filename, bool *show_error_popup,
 
     if (image->isLoaded) {
       UnloadImage(image->image);
+      UnloadImage(image->img_copy);
     }
     image->image = LoadImage(filename);
-    // image->img_copy = image->image;
+    image->img_copy = ImageCopy(image->image);
     image->path = filename;
     image->isLoaded = true;
     image->initial_size = (Vector2){image->image.width, image->image.height};
@@ -270,4 +269,10 @@ PosSize set_dynamic_position(int x, int y, int width, int height) {
 Rectangle set_dynamic_position_rect(int x, int y, int width, int height) {
   PosSize e = set_dynamic_position(x, y, width, height);
   return (Rectangle){e.x, e.y, e.width, e.height};
+}
+
+void update_and_reflect_image_changes(ImageObject *image) {
+  UnloadImage(image->img_copy);
+  image->img_copy = ImageCopy(image->image);
+  ImageBlurGaussian(&image->img_copy, image->blur_intensity);
 }
