@@ -115,8 +115,6 @@ int main() {
     info_dialog(&draw_info_dialog);
     error_dialog(&draw_error_dialog, error_message);
 
-    GuiWindowFileDialog(&file_dialog_state);
-
     if (file_dialog_state.SelectFilePressed) {
       file_dialog_state.SelectFilePressed = false;
       const char *filename =
@@ -132,9 +130,12 @@ int main() {
               &image.blur_intensity, 0, 10);
     // handling closing of application (dialog and state)
     // triggered by the WindowShouldClose() event
+
+    GuiWindowFileDialog(&file_dialog_state);
     if (draw_window_close_confirm_dialog) {
       close_window = close_window_dialog(&draw_window_close_confirm_dialog);
     }
+
     EndDrawing();
   }
 
