@@ -33,10 +33,10 @@ typedef struct {
 // things defined using this are usually in percentage
 // eg x=45% of GetScreenWidth()
 typedef struct {
-  int x;
-  int y;
-  int width;
-  int height;
+  float x;
+  float y;
+  float width;
+  float height;
 } PosSize;
 
 // function declarations
@@ -49,8 +49,9 @@ void load_new_image(ImageObject *image, char *filename);
 void load_texture(ImageObject *image);
 void handle_dynamic_canvas_resizing(ImageObject *image);
 void handle_crop_event(ImageObject *image);
-PosSize set_dynamic_position(int x, int y, int width, int height);
-Rectangle set_dynamic_position_rect(int x, int y, int width, int height);
+PosSize set_dynamic_position(float x, float y, float width, float height);
+Rectangle set_dynamic_position_rect(float x, float y, float width,
+                                    float height);
 void update_and_reflect_image_changes(ImageObject *image);
 // global variables (used globally)
 
@@ -73,11 +74,9 @@ int main() {
   GuiWindowFileDialogState file_dialog_state =
       InitGuiWindowFileDialog(GetWorkingDirectory());
 
-  file_dialog_state.windowBounds.x = (GetScreenWidth() / 2.f) - 200;
-  file_dialog_state.windowBounds.y = (GetScreenHeight() / 2.f) - 150;
-
   while (!close_window) {
     canvas.size = (Vector2){GetScreenWidth() / 2.f, GetScreenHeight() / 2.f};
+    file_dialog_state.windowBounds = set_dynamic_position_rect(25, 20, 50, 60);
     if (WindowShouldClose())
       draw_window_close_confirm_dialog = true;
     BeginDrawing();
@@ -123,15 +122,16 @@ int main() {
       file_dialog_state.windowActive = true;
     }
 
-    GuiCheckBox(set_dynamic_position_rect(22, 2, 3, 4), "Pixel Perfect",
+    GuiCheckBox(set_dynamic_position_rect(22, 2.9, 2, 2.8), "Pixel Perfect",
                 &image.snap_pixels);
 
     // handle cropping
-    GuiToggle(set_dynamic_position_rect(36, 1, 20, 5), "#99#Crop",
+    GuiToggle(set_dynamic_position_rect(36, 1, 10, 5), "#99#Crop",
               &image.start_crop);
     handle_crop_event(&image);
 
-    if (GuiButton((Rectangle){GetScreenWidth() - 97, 1, 30, 30}, "#211#")) {
+    // undo changes button
+    if (GuiButton((Rectangle){GetScreenWidth() - 128, 1, 30, 30}, "#211#")) {
       image.brightness_intensity = 0;
       image.blur_intensity = 0;
       image.snap_pixels = false;
@@ -142,9 +142,15 @@ int main() {
       }
     }
 
-    if (GuiButton((Rectangle){GetScreenWidth() - 65, 1, 30, 30}, "#2#")) {
+    // save button
+    if (GuiButton((Rectangle){GetScreenWidth() - 97, 1, 30, 30}, "#2#")) {
     }
 
+    // settings button
+    if (GuiButton((Rectangle){GetScreenWidth() - 65, 1, 30, 30}, "#142#")) {
+    }
+
+    // help button
     if (GuiButton((Rectangle){GetScreenWidth() - 32, 1, 30, 30}, "#193#")) {
       draw_info_dialog = true;
     }
@@ -297,17 +303,18 @@ bool close_window_dialog(bool *draw) {
   return close;
 }
 
-PosSize set_dynamic_position(int x, int y, int width, int height) {
+PosSize set_dynamic_position(float x, float y, float width, float height) {
   PosSize pos_size;
-  pos_size.x = (GetScreenWidth() / 100) * x;
-  pos_size.y = (GetScreenHeight() / 100) * y;
-  pos_size.width = (GetScreenWidth() / 100) * width;
-  pos_size.height = (GetScreenHeight() / 100) * height;
+  pos_size.x = (GetScreenWidth() / 100.f) * x;
+  pos_size.y = (GetScreenHeight() / 100.f) * y;
+  pos_size.width = (GetScreenWidth() / 100.f) * width;
+  pos_size.height = (GetScreenHeight() / 100.f) * height;
 
   return pos_size;
 }
 
-Rectangle set_dynamic_position_rect(int x, int y, int width, int height) {
+Rectangle set_dynamic_position_rect(float x, float y, float width,
+                                    float height) {
   PosSize e = set_dynamic_position(x, y, width, height);
   return (Rectangle){e.x, e.y, e.width, e.height};
 }

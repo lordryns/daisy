@@ -1,5 +1,5 @@
 # daisy
-An lightweight image editor built in C
+A lightweight image editor built in C
 
 Daisy uses Raylib for window management and image processing and might as well just be a gui wrapper for the library. Of course I do plan on introducing its own special twist but for now, I'm focusing on giving it all the features You'd expect from a text editor while keeping it lightweight and fast.
 
