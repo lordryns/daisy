@@ -19,6 +19,7 @@ typedef struct {
   Vector2 initial_size;
   bool start_crop;
   float blur_intensity;
+  float brightness_intensity;
 } ImageObject;
 
 typedef struct {
@@ -63,9 +64,10 @@ int main() {
   bool draw_error_dialog = false;
   char error_message[1024] = {0};
   float last_blur_change = 0.f;
+  float last_brightness_change = 0.f;
   bool last_pixel_snap_change = false;
 
-  InitWindow(700, 500, "Image Editor");
+  InitWindow(700, 500, "Daisy v0.1");
   SetTargetFPS(60);
 
   GuiWindowFileDialogState file_dialog_state =
@@ -98,6 +100,15 @@ int main() {
         blur_timer = 0.f;
       }
 
+      static float brightness_timer = 0.f;
+      brightness_timer += GetFrameTime();
+      if (image.brightness_intensity != last_brightness_change &&
+          brightness_timer > 1.f) {
+        handle_dynamic_canvas_resizing(&image);
+        last_brightness_change = image.brightness_intensity;
+        brightness_timer = 0.f;
+      }
+
       if (image.snap_pixels != last_pixel_snap_change) {
         handle_dynamic_canvas_resizing(&image);
         last_pixel_snap_change = image.snap_pixels;
@@ -120,11 +131,22 @@ int main() {
               &image.start_crop);
     handle_crop_event(&image);
 
-    if (GuiButton((Rectangle){GetScreenWidth() - 32, 1, 30, 30}, "#193#")) {
-      draw_info_dialog = true;
+    if (GuiButton((Rectangle){GetScreenWidth() - 97, 1, 30, 30}, "#211#")) {
+      image.brightness_intensity = 0;
+      image.blur_intensity = 0;
+      image.snap_pixels = false;
+      image.start_crop = false;
+
+      if (image.isLoaded) {
+        handle_dynamic_canvas_resizing(&image);
+      }
     }
 
     if (GuiButton((Rectangle){GetScreenWidth() - 65, 1, 30, 30}, "#2#")) {
+    }
+
+    if (GuiButton((Rectangle){GetScreenWidth() - 32, 1, 30, 30}, "#193#")) {
+      draw_info_dialog = true;
     }
 
     info_dialog(&draw_info_dialog);
@@ -139,8 +161,15 @@ int main() {
     }
 
     // blur slider
-    GuiSlider(set_dynamic_position_rect(4, 20, 15, 5), "Blur", "",
-              &image.blur_intensity, 0, 10);
+    GuiLabel(set_dynamic_position_rect(1, 17, 15, 3), "Blur");
+    GuiSlider(set_dynamic_position_rect(1, 20, 20, 5), "", "",
+              &image.blur_intensity, 0, 20);
+
+    // brightness slider
+    GuiLabel(set_dynamic_position_rect(1, 27, 15, 3), "Brightness");
+    GuiSlider(set_dynamic_position_rect(1, 30, 20, 5), "", "",
+              &image.brightness_intensity, -100, 100);
+
     // handling closing of application (dialog and state)
     // triggered by the WindowShouldClose() event
 
@@ -229,7 +258,8 @@ void info_dialog(bool *draw) {
 
   if (*draw) {
     int response = GuiMessageBox(
-        rect, "Info", "Image Editor v 0.1. Created by @lordryns on X", "OK");
+        rect, "Info", "Daisy image editor v 0.1. lordryns/daisy on github",
+        "OK");
 
     switch (response) {
     case 0:
@@ -286,4 +316,5 @@ void update_and_reflect_image_changes(ImageObject *image) {
   UnloadImage(image->img_copy);
   image->img_copy = ImageCopy(image->image);
   ImageBlurGaussian(&image->img_copy, image->blur_intensity);
+  ImageColorBrightness(&image->img_copy, image->brightness_intensity);
 }
