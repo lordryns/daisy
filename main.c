@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
@@ -7,6 +8,18 @@
 
 #define GUI_WINDOW_FILE_DIALOG_IMPLEMENTATION
 #include "gui_window_file_dialog.h"
+
+typedef struct {
+  char *text;
+  Vector2 position;
+} TextObject;
+
+typedef struct {
+  TextObject *buffer;
+  size_t capacity;
+  size_t index_size;
+  int index;
+} TextAllocator;
 
 // intermediate image object type declaration
 typedef struct {
@@ -20,6 +33,7 @@ typedef struct {
   bool start_crop;
   float blur_intensity;
   float brightness_intensity;
+  TextAllocator text_allocator;
 } ImageObject;
 
 typedef struct {
@@ -53,16 +67,21 @@ PosSize set_dynamic_position(float x, float y, float width, float height);
 Rectangle set_dynamic_position_rect(float x, float y, float width,
                                     float height);
 void update_and_reflect_image_changes(ImageObject *image);
+TextAllocator new_text_allocator(int capacity);
+void append_to_text_allocator(TextAllocator *alloc, TextObject tobject);
 // global variables (used globally)
 
 CustomCanvas canvas = {{0}};
 
 int main() {
-  ImageObject image;
+  ImageObject image = {0};
+  image.text_allocator = new_text_allocator(2);
   bool close_window = false;
   bool draw_window_close_confirm_dialog = false;
   bool draw_info_dialog = false;
   bool draw_error_dialog = false;
+  bool draw_add_text_dialog = false;
+  char add_text_dialog_text[40] = "";
   char error_message[1024] = {0};
   float last_blur_change = 0.f;
   float last_brightness_change = 0.f;
@@ -130,6 +149,39 @@ int main() {
               &image.start_crop);
     handle_crop_event(&image);
 
+    // text button
+    if (GuiButton(set_dynamic_position_rect(47, 1, 11, 5), "#30#Add Text")) {
+      draw_add_text_dialog = true;
+    }
+
+    if (draw_add_text_dialog) {
+
+      int res = GuiTextInputBox(set_dynamic_position_rect(30, 30, 40, 40),
+                                "Add Text", "Add text to display", "Cancel;Add",
+                                add_text_dialog_text,
+                                sizeof(add_text_dialog_text), NULL);
+
+      switch (res) {
+      case 0:
+        draw_add_text_dialog = false;
+        break;
+      case 1:
+        draw_add_text_dialog = false;
+        break;
+      case 2:
+        draw_add_text_dialog = false;
+        if (image.isLoaded) {
+          append_to_text_allocator(
+              &image.text_allocator,
+              (TextObject){add_text_dialog_text,
+                           (Vector2){GetRandomValue(0, canvas.size.x),
+                                     GetRandomValue(0, canvas.size.y)}});
+
+          handle_dynamic_canvas_resizing(&image);
+        }
+        break;
+      }
+    }
     // undo changes button
     if (GuiButton((Rectangle){GetScreenWidth() - 128, 1, 30, 30}, "#211#")) {
       image.brightness_intensity = 0;
@@ -193,6 +245,7 @@ int main() {
   }
   UnloadTexture(canvas.texture);
   CloseWindow();
+  free(image.text_allocator.buffer);
   return 0;
 }
 
@@ -324,4 +377,23 @@ void update_and_reflect_image_changes(ImageObject *image) {
   image->img_copy = ImageCopy(image->image);
   ImageBlurGaussian(&image->img_copy, image->blur_intensity);
   ImageColorBrightness(&image->img_copy, image->brightness_intensity);
+  for (int i = 0; i < image->text_allocator.index; i++) {
+    TextObject current = image->text_allocator.buffer[i];
+    ImageDrawText(&image->img_copy, current.text, current.position.x,
+                  current.position.y, 40, BLACK);
+  }
+}
+
+TextAllocator new_text_allocator(int capacity) {
+  return (TextAllocator){malloc(capacity * sizeof(TextObject)), capacity,
+                         sizeof(TextObject), 0};
+}
+void append_to_text_allocator(TextAllocator *alloc, TextObject tobject) {
+  if (alloc->index > alloc->capacity - 1) {
+    alloc->capacity *= 2;
+    alloc->buffer = realloc(alloc->buffer, alloc->index_size * alloc->capacity);
+  }
+
+  alloc->buffer[alloc->index] = tobject;
+  alloc->index += 1;
 }
