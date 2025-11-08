@@ -264,9 +264,15 @@ Vector2 end_context_pos;
 
 // chatgpt helped with the creation of this function
 void handle_context_state(ImageObject *image) {
+  Rectangle n_canvas = {canvas.position.x, canvas.position.y, canvas.size.x,
+                        canvas.size.y};
   Vector2 mouse_pos = GetMousePosition();
   DrawRectangleRec(canvas.context, Fade(BLACK, 0.2f));
   DrawRectangleLinesEx(canvas.context, 2, BLACK);
+
+  if (!CheckCollisionPointRec(mouse_pos, n_canvas)) {
+    return;
+  }
   // printf("rect y: %f\n", rect.y);
   mouse_pos.x = fmaxf(canvas.position.x,
                       fminf(mouse_pos.x, canvas.position.x + canvas.size.x));
