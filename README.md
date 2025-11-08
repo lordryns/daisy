@@ -17,6 +17,12 @@ This feature is still heavily broken and is not suitable for any kind of use at 
 - Image loading
 
 
+
+### Features to be added 
+- Context box editing:
+The entire image is the context and any feature is global but when a context box is drawn on screen (using the left mouse button) the added features will only apply to the highlighted region  
+
+
 ### How to install ? 
 There are two ways of using Daisy (or at least there should be). The first are the pre-built binaries that'll be provided by the end of 0.1-stable but for now option 2 is the only viable solution 
 
