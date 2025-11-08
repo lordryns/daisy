@@ -7,6 +7,8 @@ Daisy is still under active development and new features are being added daily
 
 ### New features (updated daily):
 
+- Replacing individual behaviour with unified context system
+
 - Add text to image (takes at most 40 characters at a time): 
 This feature is still heavily broken and is not suitable for any kind of use at this point 
 

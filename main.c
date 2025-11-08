@@ -33,16 +33,10 @@ typedef struct {
   bool isLoaded;
   bool snap_pixels;
   Vector2 initial_size;
-  bool start_crop;
   float blur_intensity;
   float brightness_intensity;
   TextAllocator text_allocator;
 } ImageObject;
-
-typedef struct {
-  Vector2 position;
-  Vector2 size;
-} Context;
 
 typedef struct {
   Texture texture;
@@ -50,9 +44,7 @@ typedef struct {
   Vector2 position;
   bool selected;
   Vector2 mouseCell;
-  Context context;
-  bool use_context;
-  Rectangle crop_rect;
+  Rectangle context;
 } CustomCanvas;
 
 // things defined using this are usually in percentage
@@ -73,14 +65,13 @@ void load_new_image(ImageObject *image, char *filename);
 
 void load_texture(ImageObject *image);
 void handle_dynamic_canvas_resizing(ImageObject *image);
-void handle_crop_event(ImageObject *image);
 PosSize set_dynamic_position(float x, float y, float width, float height);
 Rectangle set_dynamic_position_rect(float x, float y, float width,
                                     float height);
 void update_and_reflect_image_changes(ImageObject *image);
 TextAllocator new_text_allocator(int capacity);
 void append_to_text_allocator(TextAllocator *alloc, TextObject tobject);
-bool is_arg_within_image_bounds(Vector2 arg);
+void handle_context_state(ImageObject *image);
 // global variables (used globally)
 
 // there should be only one instance of the canvas, this canvas.
@@ -120,8 +111,6 @@ int main() {
     if (image.isLoaded) {
       DrawTexture(canvas.texture, canvas.position.x, canvas.position.y, WHITE);
       if (IsWindowResized()) {
-        image.start_crop = false;
-        canvas.crop_rect = (Rectangle){};
         handle_dynamic_canvas_resizing(&image);
       }
 
@@ -160,19 +149,13 @@ int main() {
                 &image.snap_pixels);
 
     // handle cropping
-    GuiToggle(set_dynamic_position_rect(36, 1, 10, 5), "#99#Crop",
-              &image.start_crop);
+    GuiButton(set_dynamic_position_rect(36, 1, 10, 5), "#99#Crop");
 
     if (image.isLoaded)
-      handle_crop_event(&image);
-    // text button
-    if (GuiButton(set_dynamic_position_rect(47, 1, 11, 5), "#30#Add Text")) {
-      draw_add_text_dialog = true;
-    }
-
-    if (IsMouseButtonDown(MOUSE_LEFT_BUTTON)) {
-      canvas.context.position = GetMousePosition();
-    }
+      // text button
+      if (GuiButton(set_dynamic_position_rect(47, 1, 11, 5), "#30#Add Text")) {
+        draw_add_text_dialog = true;
+      }
 
     if (draw_add_text_dialog) {
 
@@ -208,7 +191,6 @@ int main() {
       image.brightness_intensity = 0;
       image.blur_intensity = 0;
       image.snap_pixels = false;
-      image.start_crop = false;
       free(image.text_allocator.buffer);
       image.text_allocator = new_text_allocator(2);
 
@@ -217,6 +199,10 @@ int main() {
       }
     }
 
+    handle_context_state(&image);
+    if (IsWindowResized()) {
+      canvas.context = (Rectangle){0, 0, 0, 0};
+    }
     // save button
     if (GuiButton((Rectangle){GetScreenWidth() - 97, 1, 30, 30}, "#2#")) {
     }
@@ -273,42 +259,40 @@ int main() {
 }
 
 // global variables (bad practice i know)
-Vector2 start_crop_pos;
-Vector2 end_crop_pos;
+Vector2 start_context_pos;
+Vector2 end_context_pos;
 
 // chatgpt helped with the creation of this function
-void handle_crop_event(ImageObject *image) {
+void handle_context_state(ImageObject *image) {
   Vector2 mouse_pos = GetMousePosition();
-  if (image->start_crop) {
-    DrawRectangleRec(canvas.crop_rect, Fade(BLACK, 0.2f));
-    DrawRectangleLinesEx(canvas.crop_rect, 2, BLACK);
-    // printf("rect y: %f\n", rect.y);
-    mouse_pos.x = fmaxf(canvas.position.x,
-                        fminf(mouse_pos.x, canvas.position.x + canvas.size.x));
-    mouse_pos.y = fmaxf(canvas.position.y,
-                        fminf(mouse_pos.y, canvas.position.y + canvas.size.y));
+  DrawRectangleRec(canvas.context, Fade(BLACK, 0.2f));
+  DrawRectangleLinesEx(canvas.context, 2, BLACK);
+  // printf("rect y: %f\n", rect.y);
+  mouse_pos.x = fmaxf(canvas.position.x,
+                      fminf(mouse_pos.x, canvas.position.x + canvas.size.x));
+  mouse_pos.y = fmaxf(canvas.position.y,
+                      fminf(mouse_pos.y, canvas.position.y + canvas.size.y));
 
-    if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
-      start_crop_pos = mouse_pos;
-    }
+  if (IsMouseButtonPressed(MOUSE_BUTTON_LEFT)) {
+    start_context_pos = mouse_pos;
+  }
 
-    if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
-      end_crop_pos = mouse_pos;
+  if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
+    end_context_pos = mouse_pos;
 
-      float startX =
-          fmaxf(canvas.position.x, fminf(start_crop_pos.x, end_crop_pos.x));
-      float startY =
-          fmaxf(canvas.position.y, fminf(start_crop_pos.y, end_crop_pos.y));
-      float endX = fminf(canvas.position.x + canvas.size.x,
-                         fmaxf(start_crop_pos.x, end_crop_pos.x));
-      float endY = fminf(canvas.position.y + canvas.size.y,
-                         fmaxf(start_crop_pos.y, end_crop_pos.y));
+    float startX =
+        fmaxf(canvas.position.x, fminf(start_context_pos.x, end_context_pos.x));
+    float startY =
+        fmaxf(canvas.position.y, fminf(start_context_pos.y, end_context_pos.y));
+    float endX = fminf(canvas.position.x + canvas.size.x,
+                       fmaxf(start_context_pos.x, end_context_pos.x));
+    float endY = fminf(canvas.position.y + canvas.size.y,
+                       fmaxf(start_context_pos.y, end_context_pos.y));
 
-      canvas.crop_rect.x = startX;
-      canvas.crop_rect.y = startY;
-      canvas.crop_rect.width = endX - startX;
-      canvas.crop_rect.height = endY - startY;
-    }
+    canvas.context.x = startX;
+    canvas.context.y = startY;
+    canvas.context.width = endX - startX;
+    canvas.context.height = endY - startY;
   }
 }
 
@@ -452,5 +436,3 @@ void append_to_text_allocator(TextAllocator *alloc, TextObject tobject) {
   alloc->buffer[alloc->index] = tobject;
   alloc->index += 1;
 }
-
-bool is_arg_within_image_bounds(Vector2 arg) {}
